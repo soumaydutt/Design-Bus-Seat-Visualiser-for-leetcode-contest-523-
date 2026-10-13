@@ -5,7 +5,7 @@
 body{max-width:790px;margin:30px auto;padding:16px}
 h1{margin-bottom:6px}.muted{color:#9daec9} .panel{background:#172238;border:1px solid #34435d;border-radius:15px;padding:20px;margin-top:18px}
 .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}button,input{font:inherit;border-radius:9px;padding:10px;border:1px solid #52617a}
-button{cursor:pointer;background:#30415e;color:white}button:hover{filter:brightness(1.18)}
+button{cursor:pointer;background:#30415e;color:white}button:hover{filter:brightness(1.18)}button:disabled{opacity:.4;cursor:not-allowed;filter:none}.playback{margin-top:14px}.playback-note{margin-top:10px;line-height:1.5}.current-step{color:#fcd34d}#history li.active{color:#fcd34d;font-weight:700}
 input{width:65px;background:#0d172a;color:white}
 .seatgrid{display:grid;grid-template-columns:repeat(2,1fr) 35px repeat(2,1fr);gap:10px;max-width:450px;margin:22px auto}
 .seat{min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#273951;border:1px solid #516482}
@@ -16,13 +16,15 @@ a{color:#93c5fd}
 </style></head><body>
 <h1>🚌 Bus Booking Visualizer</h1><p class="muted">LeetCode Weekly Contest 523 · Question 3</p>
 <p>Click seats to book or cancel. A window seat costs <b>3 seconds</b> if its adjacent middle seat was already booked; otherwise each seat costs 1 second. Costs stay fixed until cancellation.</p>
-<div class="panel"><div class="controls"><label>Rows <input id="rows" type="number" min="1" max="20" value="5"></label><button id="reset">Reset</button><button id="example">Try B3 → A3 → cancel B3</button></div>
-<div id="seatgrid" class="seatgrid"></div>
+<div class="panel"><div class="controls"><label>Rows <input id="rows" type="number" min="1" max="20" value="5"></label><button id="reset">Reset</button><button id="example">Step through example</button></div>
+<div id="playback" class="playback" hidden><div class="controls"><button id="previous">← Previous</button><button id="next">Next →</button><button id="play">▶ Play</button><button id="restart">↺ Restart</button><span id="stepcounter" class="muted" aria-live="polite"></span></div><p id="stepnote" class="playback-note muted" aria-live="polite"></p></div><div id="seatgrid" class="seatgrid"></div>
 <div class="metrics"><div class="metric"><span class="muted">Booked</span><strong id="count">0</strong></div><div class="metric"><span class="muted">Total time</span><strong id="total">0s</strong></div><div class="metric"><span class="muted">Minimum time</span><strong id="minimum">0s</strong></div></div></div>
 <div class="panel"><b>Booking history</b><ol id="history"></ol></div>
 <p class="muted">Minimum time = booked seat count, since window seats can always be booked before adjacent middle seats.</p>
 <script>
 let booked={},costs={},total=0,count=0,events=[];
+const exampleSteps=[{seat:'B3',note:'Book B3: the middle seat costs 1 second.'},{seat:'A3',note:'Book A3: B3 is occupied, so A3 stores a 3-second cost.'},{seat:'B3',note:'Cancel B3: A3 still retains its original 3-second cost, while the minimum is only 1 second.'},{seat:'A3',note:'Cancel A3: both seats are empty again.'},{seat:'A3',note:'Rebook A3: B3 is empty, so the new booking costs just 1 second.'}];
+let exampleStep=0,exampleActive=false,playTimer=null;
 const grid=document.getElementById('seatgrid');
 const rowsInput=document.getElementById('rows');
 function render(){
@@ -39,16 +41,28 @@ button.addEventListener('click',()=>toggle(seat));grid.append(button);
 document.getElementById('count').textContent=count;
 document.getElementById('total').textContent=total+'s';
 document.getElementById('minimum').textContent=count+'s';
-document.getElementById('history').replaceChildren(...events.map(msg=>{const li=document.createElement('li');li.textContent=msg;return li;}));
+document.getElementById('history').replaceChildren(...events.map((msg,i)=>{const li=document.createElement('li');li.textContent=msg;if(exampleActive&&i===exampleStep-1)li.className='active';return li;}));
 }
-function toggle(seat){
+function toggle(seat,fromExample=false){
+if(!fromExample)stopExample();
 if(booked[seat]){total-=costs[seat];count--;events.push('Cancelled '+seat+' (removed '+costs[seat]+'s)');delete booked[seat];delete costs[seat];}
 else{const adjacent=seat[0]==='A'?'B'+seat.slice(1):seat[0]==='D'?'C'+seat.slice(1):null;
 const cost=adjacent&&booked[adjacent]?3:1;booked[seat]=true;costs[seat]=cost;count++;total+=cost;events.push('Booked '+seat+' for '+cost+'s');}
 render();}
-function reset(){booked={};costs={};total=0;count=0;events=[];render();}
+function clearBookings(){booked={};costs={};total=0;count=0;events=[];render();}
+function pauseExample(){if(playTimer!==null){clearInterval(playTimer);playTimer=null;}document.getElementById('play').textContent='▶ Play';}
+function stopExample(){pauseExample();exampleActive=false;document.getElementById('playback').hidden=true;}
+function reset(){stopExample();clearBookings();}
+function updatePlayback(){document.getElementById('previous').disabled=exampleStep===0;document.getElementById('next').disabled=exampleStep===exampleSteps.length;document.getElementById('play').disabled=exampleStep===exampleSteps.length;document.getElementById('stepcounter').textContent=`Step ${exampleStep} of ${exampleSteps.length}`;document.getElementById('stepnote').textContent=exampleStep===0?'Start with an empty bus. Click Next to book B3.':exampleSteps[exampleStep-1].note;}
+function seekExample(step){pauseExample();exampleStep=Math.max(0,Math.min(exampleSteps.length,step));clearBookings();for(let i=0;i<exampleStep;i++)toggle(exampleSteps[i].seat,true);updatePlayback();}
+function startExample(){stopExample();if(Number(rowsInput.value)<3)rowsInput.value=3;exampleActive=true;document.getElementById('playback').hidden=false;seekExample(0);}
+function nextExample(){if(exampleStep>=exampleSteps.length){pauseExample();return;}exampleStep++;toggle(exampleSteps[exampleStep-1].seat,true);updatePlayback();if(exampleStep===exampleSteps.length)pauseExample();}
 document.getElementById('reset').addEventListener('click',reset);
 rowsInput.addEventListener('change',()=>{rowsInput.value=Math.max(1,Math.min(20,Number(rowsInput.value)||5));reset();});
-document.getElementById('example').addEventListener('click',()=>{if(Number(rowsInput.value)<3)rowsInput.value=3;reset();toggle('B3');toggle('A3');toggle('B3');});
+document.getElementById('example').addEventListener('click',startExample);
+document.getElementById('next').addEventListener('click',()=>{pauseExample();nextExample();});
+document.getElementById('previous').addEventListener('click',()=>seekExample(exampleStep-1));
+document.getElementById('restart').addEventListener('click',()=>seekExample(0));
+document.getElementById('play').addEventListener('click',()=>{if(playTimer!==null){pauseExample();return;}if(exampleStep>=exampleSteps.length)return;document.getElementById('play').textContent='Ⅱ Pause';playTimer=setInterval(nextExample,1100);});
 render();
 </script></body></html>
