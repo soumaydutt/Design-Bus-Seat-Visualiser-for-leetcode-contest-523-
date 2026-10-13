@@ -55,7 +55,7 @@ Also keep `totalTime` and `bookedCount`. Booking checks the adjacent middle seat
 
 ## Run
 
-**Browser:** Open [index.html](index.html), click seats to book/cancel, inspect per-seat costs and total vs minimum time. Try **B3 → A3 → cancel B3**.
+**Browser:** Open [index.html](index.html), click seats to book/cancel, inspect per-seat costs and total vs minimum time. Choose **Step through example** to advance through **B3 → A3 → cancel B3 → cancel A3 → rebook A3**. Use Previous, Next, Play/Pause, or Restart to inspect the total and minimum after each operation. Click a seat at any time to return to manual mode.
 
 **Java desktop:** `javac BusBooking.java BusBookingDemo.java`, then `java BusBookingDemo`.
 
